@@ -17,7 +17,8 @@ CREATE TABLE aux
 	fecha_hora_ret TIMESTAMP NOT NULL,
 	est_origen INTEGER NOT NULL,
 	est_destino INTEGER NOT NULL,
-	fecha_hora_dev TIMESTAMP NOT NULL CHECK(fecha_hora_dev >= fecha_hora_ret)
+	tiempo_uso INTERVAL NOT NULL
+	--fecha_hora_dev TIMESTAMP NOT NULL CHECK(fecha_hora_dev >= fecha_hora_ret)
 	);
 
 CREATE TABLE recorrido_final
