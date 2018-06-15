@@ -1,7 +1,6 @@
 CREATE OR REPLACE FUNCTION migracion() RETURNS VOID
 AS $$
 BEGIN
---\copy aux FROM '/home/jkatan/Escritorio/recorridos-realizados-2016.csv'  DELIMITER ';' CSV HEADER;
 SET datestyle TO postgres, dmy;
 DROP TABLE IF EXISTS recorrido_final;
 
