@@ -83,6 +83,8 @@ SET datestyle TO postgres, dmy;
  INSERT INTO auxWithFechaDev SELECT periodo, usuario, fecha_hora_ret, est_origen, est_destino, (fecha_hora_ret + tiempo_uso)
  FROM auxWithoutRepeated;
 
+ PERFORM removeOverlapped();
+
 	RETURN 1;
 END;
 $$ LANGUAGE plpgSQL;
@@ -160,3 +162,27 @@ BEGIN
 RETURN 1;
 END;
 $$ LANGUAGE plpgSQL;
+
+CREATE TRIGGER detecta_solapado
+BEFORE INSERT ON recorrido_final
+FOR EACH ROW
+EXECUTE PROCEDURE validateOverlap();
+
+CREATE OR REPLACE FUNCTION validateOverlap() RETURNS trigger
+AS $$
+DECLARE
+        cantOverlaps int;
+BEGIN
+				cantOverlaps = (SELECT COUNT(*) FROM recorrido_final
+				WHERE NEW.usuario = usuario AND ((NEW.fecha_hora_dev >= fecha_hora_ret AND NEW.fecha_hora_ret <= fecha_hora_ret)
+				OR (NEW.fecha_hora_dev >= fecha_hora_dev AND NEW.fecha_hora_ret <= fecha_hora_dev)
+				OR (NEW.fecha_hora_dev <= fecha_hora_dev AND NEW.fecha_hora_dev >= fecha_hora_ret)
+				OR (NEW.fecha_hora_ret <= fecha_hora_dev AND NEW.fecha_hora_ret >= fecha_hora_ret)));
+
+				IF cantOverlaps > 0 THEN
+				RAISE EXCEPTION 'Error, se esta ingresando un intervalo solapado';
+				END IF;
+
+				RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
