@@ -52,29 +52,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgSQL;
 
---Remover intervalos solapados
-CREATE OR REPLACE FUNCTION removeOverlapped() RETURNS INTEGER
-AS $$
-DECLARE
-		value INTEGER;
- 		myCursor CURSOR FOR
-		SELECT DISTINCT usuario FROM auxWithFechaDev;
-
-BEGIN
-		OPEN myCursor;
-		LOOP
-
-			FETCH myCursor INTO value;
-			EXIT WHEN NOT FOUND;
-			PERFORM fixOverlaps(value);
-
-		END LOOP;
-		CLOSE myCursor;
-
-		RETURN 1;
-END;
-$$ LANGUAGE plpgSQL;
-
 CREATE OR REPLACE FUNCTION fixOverlaps(param INTEGER) RETURNS INTEGER
 AS $$
 DECLARE
@@ -124,29 +101,29 @@ RETURN 1;
 END;
 $$ LANGUAGE plpgSQL;
 
-CREATE TRIGGER detecta_solapado
-BEFORE INSERT ON recorrido_final
-FOR EACH ROW
-EXECUTE PROCEDURE validateOverlap();
-
-CREATE OR REPLACE FUNCTION validateOverlap() RETURNS trigger
+--Remover intervalos solapados
+CREATE OR REPLACE FUNCTION removeOverlapped() RETURNS INTEGER
 AS $$
 DECLARE
-        cantOverlaps INTEGER;
+		value INTEGER;
+ 		myCursor CURSOR FOR
+		SELECT DISTINCT usuario FROM auxWithFechaDev;
+
 BEGIN
-				cantOverlaps = (SELECT COUNT(*) FROM recorrido_final
-				WHERE NEW.usuario = usuario AND ((NEW.fecha_hora_dev >= fecha_hora_ret AND NEW.fecha_hora_ret <= fecha_hora_ret)
-				OR (NEW.fecha_hora_dev >= fecha_hora_dev AND NEW.fecha_hora_ret <= fecha_hora_dev)
-				OR (NEW.fecha_hora_dev <= fecha_hora_dev AND NEW.fecha_hora_dev >= fecha_hora_ret)
-				OR (NEW.fecha_hora_ret <= fecha_hora_dev AND NEW.fecha_hora_ret >= fecha_hora_ret)));
+		OPEN myCursor;
+		LOOP
 
-				IF cantOverlaps > 0 THEN
-				RAISE EXCEPTION 'Error, se esta ingresando un intervalo solapado';
-				END IF;
+			FETCH myCursor INTO value;
+			EXIT WHEN NOT FOUND;
+			PERFORM fixOverlaps(value);
 
-				RETURN NEW;
+		END LOOP;
+		CLOSE myCursor;
+
+		RETURN 1;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgSQL;
+
 
 CREATE OR REPLACE FUNCTION dropAuxTables() RETURNS VOID
 AS $$

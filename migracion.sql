@@ -5,24 +5,6 @@ BEGIN
 SET datestyle TO postgres, dmy;
 DROP TABLE IF EXISTS recorrido_final;
 
-CREATE TABLE auxWithoutNULL
-(periodo TEXT,
-usuario INTEGER,
-fecha_hora_ret TIMESTAMP NOT NULL,
-est_origen INTEGER NOT NULL,
-est_destino INTEGER NOT NULL,
-tiempo_uso INTERVAL NOT NULL
-);
-
-CREATE TABLE auxWithFechaDev
-(periodo TEXT,
-usuario INTEGER,
-fecha_hora_ret TIMESTAMP NOT NULL,
-est_origen INTEGER NOT NULL,
-est_destino INTEGER NOT NULL,
-fecha_hora_dev TIMESTAMP NOT NULL CHECK(fecha_hora_dev >= fecha_hora_ret)
-);
-
 CREATE TABLE recorrido_final
 (periodo TEXT,
 usuario INTEGER,
@@ -52,6 +34,7 @@ PRIMARY KEY(usuario,fecha_hora_ret)
 		GROUP BY a2.usuario, a2.fecha_hora_ret
 		HAVING count(a2.usuario) = 1
 	));
+	ALTER TABLE auxWithoutRepeated ADD PRIMARY KEY (usuario,fecha_hora_ret);
 
  PERFORM removeRepeated();
 
