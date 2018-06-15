@@ -48,7 +48,6 @@ BEGIN
 		END LOOP;
 		CLOSE myCursor;
 
-		raise notice '%', value1;
 		RETURN 1;
 END;
 $$ LANGUAGE plpgSQL;
@@ -81,6 +80,83 @@ SET datestyle TO postgres, dmy;
 
  PERFORM removeRepeated();
 
+ INSERT INTO auxWithFechaDev SELECT periodo, usuario, fecha_hora_ret, est_origen, est_destino, (fecha_hora_ret + tiempo_uso)
+ FROM auxWithoutRepeated;
+
 	RETURN 1;
+END;
+$$ LANGUAGE plpgSQL;
+
+--Remover intervalos solapados
+CREATE OR REPLACE FUNCTION removeOverlapped() RETURNS INTEGER
+AS $$
+DECLARE
+		value auxWithFechaDev.usuario%TYPE;
+ 		myCursor CURSOR FOR
+		SELECT DISTINCT usuario FROM auxWithFechaDev;
+
+BEGIN
+		OPEN myCursor;
+		LOOP
+
+			FETCH myCursor INTO value;
+			EXIT WHEN NOT FOUND;
+			PERFORM fixOverlaps(value);
+
+		END LOOP;
+		CLOSE myCursor;
+
+		RETURN 1;
+END;
+$$ LANGUAGE plpgSQL;
+
+CREATE OR REPLACE FUNCTION fixOverlaps(param auxWithFechaDev.usuario%TYPE) RETURNS INTEGER
+AS $$
+DECLARE
+	value1 auxWithFechaDev;
+	fechaInicial auxWithFechaDev.fecha_hora_ret%TYPE;
+	fechaFinal auxWithFechaDev.fecha_hora_dev%TYPE;
+	minEstacion auxWithFechaDev.est_origen%TYPE;
+	maxEstacion auxWithFechaDev.est_destino%TYPE;
+	periodo auxWithFechaDev.periodo%TYPE;
+
+	myCursor2 CURSOR FOR
+	SELECT * FROM auxWithFechaDev
+	WHERE usuario = param
+	ORDER BY fecha_hora_ret ASC;
+
+BEGIN
+
+		OPEN myCursor2;
+		FETCH myCursor2 INTO value1;
+
+		LOOP
+
+			EXIT WHEN value1 ISNULL;
+
+			fechaInicial = value1.fecha_hora_ret;
+			fechaFinal = value1.fecha_hora_dev;
+			minEstacion = value1.est_origen;
+			maxEstacion = value1.est_destino;
+			periodo = value1.periodo;
+
+			LOOP
+
+			FETCH myCursor2 INTO value1;
+			EXIT WHEN NOT FOUND OR value1.fecha_hora_ret > fechaFinal;
+
+			IF fechaFinal < value1.fecha_hora_dev THEN
+				fechaFinal = value1.fecha_hora_dev;
+				maxEstacion = value1.est_destino;
+			END IF;
+
+			END LOOP;
+
+			INSERT INTO recorrido_final VALUES(periodo, param, fechaInicial, minEstacion, maxEstacion, fechaFinal);
+
+		END LOOP;
+
+		CLOSE myCursor2;
+RETURN 1;
 END;
 $$ LANGUAGE plpgSQL;
