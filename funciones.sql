@@ -52,48 +52,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgSQL;
 
-CREATE OR REPLACE FUNCTION migracion() RETURNS INTEGER
-AS $$
-BEGIN
---\copy aux FROM '/home/jkatan/Escritorio/test1.csv'  DELIMITER ';' CSV HEADER;
-SET datestyle TO postgres, dmy;
-
-	--Se borran los tiempo_uso invalidos
-	DELETE FROM aux WHERE tiempo_uso LIKE '%-%';
-	UPDATE aux SET tiempo_uso = REPLACE(REPLACE(tiempo_uso, 'MIN', 'm'), 'SEG', 's');
-
-	--Se crea una tabla auxiliar donde no estan los valores en NULL, y los tiempo_uso son validos
-	INSERT INTO auxWithoutNULL
-	SELECT
-	periodo, CAST(usuario AS INTEGER), CAST(fecha_hora_ret AS TIMESTAMP), CAST(est_origen AS INTEGER), CAST(est_destino AS INTEGER), CAST(tiempo_uso AS INTERVAL)
-	FROM aux
-	WHERE usuario IS NOT NULL AND fecha_hora_ret IS NOT NULL AND est_origen IS NOT NULL AND
-		est_destino IS NOT NULL AND tiempo_uso IS NOT NULL;
-
-	CREATE TABLE auxWithoutRepeated AS(
-	SELECT * FROM auxWithoutNULL
-	WHERE (usuario, fecha_hora_ret) IN (
-		SELECT a2.usuario, a2.fecha_hora_ret FROM auxWithoutNULL a2
-		GROUP BY a2.usuario, a2.fecha_hora_ret
-		HAVING count(a2.usuario) = 1
-	));
-
- PERFORM removeRepeated();
-
- INSERT INTO auxWithFechaDev SELECT periodo, usuario, fecha_hora_ret, est_origen, est_destino, (fecha_hora_ret + tiempo_uso)
- FROM auxWithoutRepeated;
-
- PERFORM removeOverlapped();
-
-	RETURN 1;
-END;
-$$ LANGUAGE plpgSQL;
-
 --Remover intervalos solapados
 CREATE OR REPLACE FUNCTION removeOverlapped() RETURNS INTEGER
 AS $$
 DECLARE
-		value auxWithFechaDev.usuario%TYPE;
+		value INTEGER;
  		myCursor CURSOR FOR
 		SELECT DISTINCT usuario FROM auxWithFechaDev;
 
@@ -112,15 +75,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgSQL;
 
-CREATE OR REPLACE FUNCTION fixOverlaps(param auxWithFechaDev.usuario%TYPE) RETURNS INTEGER
+CREATE OR REPLACE FUNCTION fixOverlaps(param INTEGER) RETURNS INTEGER
 AS $$
 DECLARE
 	value1 auxWithFechaDev;
-	fechaInicial auxWithFechaDev.fecha_hora_ret%TYPE;
-	fechaFinal auxWithFechaDev.fecha_hora_dev%TYPE;
-	minEstacion auxWithFechaDev.est_origen%TYPE;
-	maxEstacion auxWithFechaDev.est_destino%TYPE;
-	periodo auxWithFechaDev.periodo%TYPE;
+	fechaInicial TIMESTAMP;
+	fechaFinal TIMESTAMP;
+	minEstacion INTEGER;
+	maxEstacion INTEGER;
+	periodo TEXT;
 
 	myCursor2 CURSOR FOR
 	SELECT * FROM auxWithFechaDev
@@ -147,10 +110,8 @@ BEGIN
 			FETCH myCursor2 INTO value1;
 			EXIT WHEN NOT FOUND OR value1.fecha_hora_ret > fechaFinal;
 
-			IF fechaFinal < value1.fecha_hora_dev THEN
-				fechaFinal = value1.fecha_hora_dev;
-				maxEstacion = value1.est_destino;
-			END IF;
+			fechaFinal = value1.fecha_hora_dev;
+			maxEstacion = value1.est_destino;
 
 			END LOOP;
 
@@ -171,7 +132,7 @@ EXECUTE PROCEDURE validateOverlap();
 CREATE OR REPLACE FUNCTION validateOverlap() RETURNS trigger
 AS $$
 DECLARE
-        cantOverlaps int;
+        cantOverlaps INTEGER;
 BEGIN
 				cantOverlaps = (SELECT COUNT(*) FROM recorrido_final
 				WHERE NEW.usuario = usuario AND ((NEW.fecha_hora_dev >= fecha_hora_ret AND NEW.fecha_hora_ret <= fecha_hora_ret)
@@ -186,3 +147,13 @@ BEGIN
 				RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION dropAuxTables() RETURNS VOID
+AS $$
+BEGIN
+	DROP TABLE aux;
+	DROP TABLE auxWithoutNULL;
+	DROP TABLE auxWithFechaDev;
+	DROP TABLE auxWithoutRepeated;
+END;
+$$ LANGUAGE plpgSQL;
