@@ -1,8 +1,3 @@
-CREATE TRIGGER detecta_solapado
-BEFORE INSERT ON recorrido_final
-FOR EACH ROW
-EXECUTE PROCEDURE validateOverlap();
-
 CREATE OR REPLACE FUNCTION validateOverlap() RETURNS trigger
 AS $$
 DECLARE
@@ -23,3 +18,9 @@ BEGIN
 				RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+CREATE TRIGGER detecta_solapado
+BEFORE INSERT ON recorrido_final
+FOR EACH ROW
+EXECUTE PROCEDURE validateOverlap();
+
+
