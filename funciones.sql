@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION selectSecond(param1 INTEGER,param2 TIMESTAMP) RETURNS
 AS $$
 DECLARE
 	pointer auxWithoutNULL;
-	basura auxWithoutNULL;
+	firstFetch auxWithoutNULL;
 	pointerCursor CURSOR FOR
 	SELECT * FROM auxWithoutNULL
 	WHERE usuario = param1 and fecha_hora_ret = param2
@@ -15,7 +15,7 @@ BEGIN
 
 	OPEN pointerCursor;
 
-	FETCH pointerCursor INTO basura;
+	FETCH pointerCursor INTO firstFetch;
 	FETCH pointerCursor INTO pointer;
 
 	CLOSE pointerCursor;
